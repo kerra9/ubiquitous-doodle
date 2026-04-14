@@ -215,10 +215,10 @@ class BasicDefensiveAI(DefensiveAI):
         attacker = possession.ball_handler.player
 
         # Base steal chance from defender's steal rating
-        base = defender.attributes.steal / 100.0 * 0.04  # max ~4% per action
+        base = defender.attributes.steal / 100.0 * 0.015  # max ~1.5% per action
 
         # Adjusted by ball handler's ball handling
         handle_factor = attacker.attributes.ball_handling / 100.0
         base *= (1.2 - handle_factor)  # worse handlers = more steals
 
-        return max(0.005, min(0.08, base))
+        return max(0.002, min(0.03, base))

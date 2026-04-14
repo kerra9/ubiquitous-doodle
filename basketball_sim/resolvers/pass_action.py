@@ -65,7 +65,7 @@ def resolve_pass(
     lane_risk = defenders_in_lane * 0.08  # each defender in lane = 8% steal chance
 
     # --- Turnover probability ---
-    turnover_pct = max(0.01, min(0.40, 0.05 + distance_penalty + lane_risk - base_success * 0.15))
+    turnover_pct = max(0.01, min(0.25, 0.02 + distance_penalty + lane_risk - base_success * 0.20))
 
     # --- Roll ---
     stolen = rng.random() < turnover_pct

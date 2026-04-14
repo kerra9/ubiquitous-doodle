@@ -30,6 +30,7 @@ from basketball_sim.core.types import (
 from basketball_sim.ai.offensive_ai import BasicOffensiveAI
 from basketball_sim.ai.defensive_ai import BasicDefensiveAI
 from basketball_sim.data.loader import load_moves
+from basketball_sim.resolvers.composite import CompositeResolver
 from basketball_sim.modifiers.fatigue import fatigue_modifier
 from basketball_sim.modifiers.psychology import psychology_modifier
 from basketball_sim.modifiers.tendencies import tendencies_modifier
@@ -256,6 +257,9 @@ def main() -> None:
     offensive_ai = BasicOffensiveAI(move_registry=moves)
     defensive_ai = BasicDefensiveAI()
 
+    # Set up resolver (routes actions to Phase 2 resolvers + pipeline)
+    resolver = CompositeResolver(pipeline=pipeline, move_registry=moves)
+
     # Set up rules
     rules = RulesConfig(
         quarter_length=args.quarter_length,
@@ -268,6 +272,7 @@ def main() -> None:
         pipeline=pipeline,
         offensive_ai=offensive_ai,
         defensive_ai=defensive_ai,
+        resolver=resolver,
         rules=rules,
     )
 

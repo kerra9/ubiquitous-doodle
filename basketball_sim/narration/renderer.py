@@ -131,6 +131,21 @@ class ProseRenderer:
         player = self._resolve_name(beat.player_id)
         event_type = beat.primary_event_type
 
+        # Suppress routine narration that adds noise
+        _GAME_FLOW = {
+            EventType.GAME_START, EventType.GAME_END,
+            EventType.QUARTER_START, EventType.QUARTER_END,
+            EventType.TIMEOUT, EventType.SUBSTITUTION,
+        }
+        _ALWAYS_NARRATE = {
+            EventType.SHOT_MADE, EventType.SHOT_MISSED, EventType.STEAL,
+            EventType.TURNOVER, EventType.BLOCK, EventType.REBOUND,
+            EventType.SHOT_ATTEMPT, EventType.FOUL_COMMITTED,
+        } | _GAME_FLOW
+        only_tags = set(beat.tags)
+        if only_tags <= {"early_game", "home_court", "dribble_move"} and event_type not in _ALWAYS_NARRATE:
+            return ""
+
         if event_type == EventType.SHOT_MADE:
             points = beat.point_value
             return f"{player} scores{f' for {points}' if points else ''}."

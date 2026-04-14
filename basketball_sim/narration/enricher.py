@@ -39,6 +39,7 @@ _EXCITING_TAGS = {
     "buzzer_beater": 0.50,
     "showboat": 0.20,
     "wide_open": -0.10,  # routine play
+    "early_game": -0.05,  # routine
     "on_fire": 0.15,
     "clutch_time": 0.20,
     "clutch_gene": 0.25,
