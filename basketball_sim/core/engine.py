@@ -334,6 +334,10 @@ class GameEngine:
 
             # 2. Defensive AI reacts
             def_events = self.defensive_ai.react(action, possession, game)
+            for dev in def_events:
+                dev.game_clock = game.game_clock
+                dev.shot_clock = shot_clock
+                dev.quarter = game.quarter
             events.extend(def_events)
             self.bus.emit_many(def_events)
 
@@ -359,6 +363,16 @@ class GameEngine:
             # 4. Apply result to possession state
             if result.new_matchup is not None:
                 possession.ball_handler.matchup = result.new_matchup
+
+            # Update ball handler cell if a drive moved them
+            for ev in result.events:
+                if ev.data.get("to_cell"):
+                    possession.ball_handler.cell = ev.data["to_cell"]
+
+            # Handle ball handler change (e.g., after a completed pass)
+            if result.ball_handler_change is not None:
+                self._switch_ball_handler(possession, result.ball_handler_change)
+
             possession.actions_this_possession.append(action)
             possession.tags_this_possession.extend(result.tags)
 
@@ -444,6 +458,51 @@ class GameEngine:
             score_change=total_score,
             offensive_rebound=False,  # TODO: rebound logic
         )
+
+    def _switch_ball_handler(
+        self, possession: PossessionState, new_handler_id: str
+    ) -> None:
+        """Switch the ball handler after a completed pass.
+
+        Moves the current ball handler to off-ball, and promotes the
+        target player from off-ball to ball handler.
+        """
+        from basketball_sim.core.types import OffBallState, PlayerOnCourt
+
+        current = possession.ball_handler
+
+        # Find the new handler in off-ball players
+        new_handler_obs: OffBallState | None = None
+        new_handler_idx: int = -1
+        for i, obs in enumerate(possession.off_ball_offense):
+            if obs.player.player_id == new_handler_id:
+                new_handler_obs = obs
+                new_handler_idx = i
+                break
+
+        if new_handler_obs is None:
+            # Target not found in off-ball -- can't switch
+            return
+
+        # Demote current ball handler to off-ball
+        old_bh = OffBallState(
+            player=current.player,
+            cell=current.cell,
+            openness=0.3,
+            catch_readiness=0.5,
+        )
+
+        # Promote new handler to ball handler with fresh matchup
+        new_bh = PlayerOnCourt(
+            player=new_handler_obs.player,
+            cell=new_handler_obs.cell,
+            matchup=MatchupState(),
+            is_ball_handler=True,
+        )
+
+        # Swap
+        possession.ball_handler = new_bh
+        possession.off_ball_offense[new_handler_idx] = old_bh
 
     def _build_possession(self, game: GameState) -> PossessionState:
         """Create a fresh PossessionState from the current game state.

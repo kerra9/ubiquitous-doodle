@@ -78,8 +78,14 @@ class BasicOffensiveAI(OffensiveAI):
         if shot_action is not None:
             return shot_action
 
-        # --- Pass to open teammate ---
-        if n_actions >= 2 and rng.random() < self._pass_probability(player, possession):
+        # --- After several actions, bias toward shooting ---
+        if n_actions >= 5:
+            # After working the ball, take what you can get
+            if rng.random() < 0.5:
+                return self._take_shot(player, cell, matchup, rng)
+
+        # --- Pass to open teammate (limited per possession) ---
+        if n_actions >= 1 and rng.random() < self._pass_probability(player, possession):
             pass_action = self._find_best_pass(possession, game, rng)
             if pass_action is not None:
                 return pass_action
@@ -200,8 +206,9 @@ class BasicOffensiveAI(OffensiveAI):
         openness = _matchup_openness(matchup)
 
         # Decision thresholds based on shot type and player ability
+        # Lower threshold = more willing to shoot
         if cell_meta.is_three:
-            threshold = 0.55 - (player.attributes.three_point / 100.0) * 0.25
+            threshold = 0.40 - (player.attributes.three_point / 100.0) * 0.25
             if openness > threshold:
                 shot_type = "corner_three" if cell_meta.is_corner_three else "three_pointer"
                 return Action(
@@ -234,13 +241,30 @@ class BasicOffensiveAI(OffensiveAI):
 
     def _pass_probability(self, player: Any, possession: PossessionState) -> float:
         """Calculate how likely the ball handler is to pass."""
+        # Count how many passes already happened this possession
+        pass_count = sum(
+            1 for a in possession.actions_this_possession
+            if a.action_type == ActionType.PASS
+        )
+
+        # Diminishing returns on passing -- each pass makes another less likely
+        if pass_count >= 4:
+            return 0.05  # almost never pass a 5th time
+        if pass_count >= 3:
+            return 0.10
+
         # Pass-first players pass more
         base = 1.0 - player.tendencies.pass_first_vs_score  # 0=scorer, 1=passer
-        # More actions = more likely to pass (ball movement)
-        action_factor = min(0.2, len(possession.actions_this_possession) * 0.04)
         # Good passers pass more
-        vision_factor = player.attributes.passing_vision / 100.0 * 0.15
-        return min(0.7, base * 0.4 + action_factor + vision_factor)
+        vision_factor = player.attributes.passing_vision / 100.0 * 0.10
+        prob = base * 0.25 + vision_factor
+
+        # Reduce pass probability after multiple actions
+        n_actions = len(possession.actions_this_possession)
+        if n_actions > 4:
+            prob *= 0.5  # bias toward shooting after working the ball
+
+        return min(0.45, prob)
 
     def _find_best_pass(
         self, possession: PossessionState, game: GameState, rng: random.Random

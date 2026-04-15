@@ -180,8 +180,13 @@ class StatsTracker:
         stats.points += points
         stats.field_goals_made += 1
 
+        # Check if this was a three-pointer
         shot_type = event.data.get("shot_type", "")
-        if "three" in shot_type or points == 3:
+        is_three = "three" in shot_type or points == 3
+        if is_three:
+            stats.three_pointers_made += 1
+        # If the shot_attempt didn't correctly categorize, use point value
+        elif points == 3 and stats.three_pointers_attempted < stats.three_pointers_made + 1:
             stats.three_pointers_made += 1
 
         # Update team total
